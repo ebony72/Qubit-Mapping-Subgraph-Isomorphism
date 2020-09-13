@@ -38,8 +38,8 @@ def qubit_in_circuit(D): # the set of logic qubits appeared in D, a subset of C
     return Q
 #\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
 # The architecture graph
-H = q20()
-G = nx.Graph.to_undirected(H)
+G = q20()
+#G = nx.Graph.to_undirected(H)
 EG = nx.edges(G)
 
 #\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
