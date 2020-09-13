@@ -3,7 +3,7 @@ import networkx as nx
 # define the architecture graph
 # IBM Q Tokyo (Q20) 
 def q20():
-    g = nx.DiGraph()
+    g = nx.Graph()
     g.add_nodes_from([0,19])
     for i in range(0,4):
         g.add_edge(i,i+1)
