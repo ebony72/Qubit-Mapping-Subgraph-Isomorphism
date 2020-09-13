@@ -57,7 +57,7 @@ A2x = '2x :: if Q0+Q1 is used for all layers '
 
 #select QFilter_type, SIZE, and initial_mapping
 #Filter type
-QFilter_type = '0' # select type from {'0', '1', '12', '12x', '2x'}
+QFilter_type = '12' # select type from {'0', '1', '12', '12x', '2x'}
 name = 'Q' + QFilter_type
 content = '*****************************************'
 save_result(name, content)
