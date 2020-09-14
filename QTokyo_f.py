@@ -1,8 +1,7 @@
 # Created on June 10, 2019 by Sanjiang Li || mrlisj@gmail.com
 # Modified on April 19, 2020 // introduced QFilter_type
-''' QTokyo_f_12_21 differs from QTokyo_f in that\
-     the Fallback mechanism is stregthened at the cost of slow process'''
-
+# Modified on Sep 13, 2020 // introduced a new filter R_hat in SWAP3x and SWAP4x 
+#// introduced a new parameter SPL in SWAP3x, SWAP4x, good_next_mappingx, and qct  
 
 # This module defines the main algorithm
 #####\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
@@ -337,10 +336,41 @@ def Q_Filter(C,EG,nl,tau,LD):
     Q2x = qubit_in_circuit(TG+TG2) #x01
     return Q0, Q1, Q2, Q2x
 
+##@0913
+def gate_phy_distance(gate, tau, SPL): #! V is an integer continuum
+    '''return the physical distance of two qubits in a gate w.r.t. mapping tau'''
+    V = list(range(20)) #for q20
+    UnOcc = list(u for u in V if tau[u] == 20) #unoccupied qubits
+    p, q = gate[0], gate[1]
+    if p in tau and q in tau:
+        return SPL[(tau.index(p), tau.index(q))]
+    elif p in tau and q not in tau:
+        u = tau.index(p)            
+        d = min([SPL[(u,v)] for v in UnOcc])
+        return d
+    elif p not in tau and q in tau:
+        v = tau.index(q)
+        d = min([SPL[(u,v)] for u in UnOcc])
+        return d        
+    else:  #p not in tau and q not in tau:
+        '''In this case, the gate should have been always a topgate by far!'''
+        d = min([SPL[(u,v)] for u in UnOcc for v in UnOcc if v != u])
+        return d  
+     
+##@0913
+def R_hat(tau, LD, nl, C, SPL): #Eq.4 in the paper
+    '''Return the weigthed sum of gate_phy_distances for the top-s layer gates'''
+    '''The smaller the better'''
+    LDx = LD[:]
+    LTG0 = topgates(C, nl, LDx)
+    dsum = 0
+    for i in LTG0:
+        dsum += gate_phy_distance(C[i], tau, SPL)
+    return dsum 
 
 # SWAP3x returns all swap sequences that lead to mappings close (dist≤3) to tau
 # D is a subset of the input circuit, and LD its index set
-def SWAP3x(C,EG,nl,tau,LD, QFilter_type):
+def SWAP3x(C,EG,nl,tau,LD, QFilter_type, SPL):
     ''' Return all (Q-filtered) actions (swap sequences) with length ≤3, Q0 and Q2 filters are used to exclude possibly less relevant actions
         Args:
             C (list): the input circuit
@@ -423,7 +453,7 @@ def SWAP3x(C,EG,nl,tau,LD, QFilter_type):
     # By far, no tested circuits go to this level
     # Consider delete this function
     
-def SWAP4x(C,EG,nl,tau,LD, QFilter_type):
+def SWAP4x(C,EG,nl,tau,LD, QFilter_type, SPL):
 
     ''' Return all (Q-filtered) actions (swap sequences) with length ≤4 by considering one more swap than SWAP3x
         Args:
@@ -455,7 +485,7 @@ def SWAP4x(C,EG,nl,tau,LD, QFilter_type):
         pass
     
     SWAP4 = []
-    z3 = SWAP3x(C,EG,nl,tau,LD,QFilter_type)
+    z3 = SWAP3x(C,EG,nl,tau,LD,QFilter_type, SPL)
     
     for x in z3:
         tau3 = x[1]
@@ -535,7 +565,7 @@ def complete_mapping(C,nl,tau):
 # Before calling this function, usually we should have removed all topgates that are executable by tau
     # that is, greedy_solved_gates(tau,LD) should be empty
 
-def good_next_mappingx(C,G,EG,nl,tau,LD,QFilter_type):
+def good_next_mappingx(C,G,EG,nl,tau,LD,QFilter_type, SPL):
     # we assume that tau cannot solve any gates in D
     ''' Select the action (a sequence of swaps) and the mapping obtained by applying the action on tau
         Method: first check if tau can be extended so that some topgate is executable;
@@ -571,7 +601,7 @@ def good_next_mappingx(C,G,EG,nl,tau,LD,QFilter_type):
             
     # rho in SWAP3x has form [[edge_1,...],taunew], where tau is a mapping, [edge_1,...] is a sequence of swaps
     SG = [] # elements in SG has form [rho, t], where rho in SWAP3x and t the efficiency rate
-    for rho in SWAP3x(C,EG,nl,tau,LD,QFilter_type):
+    for rho in SWAP3x(C,EG,nl,tau,LD,QFilter_type, SPL):
         u = len(rho[0])
         x = greedy_solved_gates(C,G,EG,nl,rho[1],LD) # x has form [solved_gates]
         if not x:
@@ -581,7 +611,7 @@ def good_next_mappingx(C,G,EG,nl,tau,LD,QFilter_type):
 
     if not SG:
         print('Yes, we go to the fourth level')
-        for rho in SWAP4x(C,EG,nl,tau,LD,QFilter_type):
+        for rho in SWAP4x(C,EG,nl,tau,LD,QFilter_type, SPL):
             u = len(rho[0]) # u < 3 is possible
             x = greedy_solved_gates(C,G,EG,nl,rho[1],LD)
             if not x:
@@ -618,7 +648,7 @@ def good_next_mappingx(C,G,EG,nl,tau,LD,QFilter_type):
       #\__/#\__/#\#/~\ THE MAIN ALGORITH10M \__/#\__/#\#/~\
 ##################################################################
 
-def qct(C,G,EG,tau,QFilter_type):
+def qct(C,G,EG,tau,QFilter_type, SPL):
     ''' Transform a quantum circuit so that it is executable in Q20 with initial mapping tau
         Method: while there are unprocessed CNOT gates in the logical circuit, first process all gates that can be solved by the current mapping,
                 then compute the next mapping and apply the corresponding action to transform to the next mapping.
@@ -674,7 +704,7 @@ def qct(C,G,EG,tau,QFilter_type):
             break
         
         nr += 1
-        Y = good_next_mappingx(C,G,EG,nl,taunew,L1,QFilter_type)
+        Y = good_next_mappingx(C,G,EG,nl,taunew,L1,QFilter_type, SPL)
         path = Y[0] # a sequence of swaps that transforms the previous mapping into the mapping tuanew below
         taunew = Y[1]
         cost = len(path)*3
