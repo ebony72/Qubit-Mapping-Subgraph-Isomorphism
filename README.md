@@ -23,10 +23,10 @@ A. QFilter_type (line 60)
 
 B. Initial mapping (line 67)
 	One can select mapping from {'topgraph', 'wgtgraph', 'empty', 'naive'}
-	The default mapping is 'topograph'
+	The default mapping is 'topgraph'
 
 C. Size of the circuits (line 69)
 	One can select size from {'small', 'medium', 'large', 'all'}
-	The default size is 'small'
+	The default size is 'medium'
 
 Our results show that Filter_type '12' is the fastest and the quality of Filter_type '2x' is very close to that of '0' (i.e., search without filter).
