@@ -25,7 +25,7 @@ def save_result(name, content):
 #\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
 #select QFilter_type, SIZE, and initial_mapping
 #Filter type
-QFilter_type = '0' # select type from {'0', '1', '12', '12x', '2x'}
+QFilter_type = '12' # select type from {'0', '1', '12', '12x', '2x'}
 #initial mapping
 initial_mapping = 'topgraph' #select mapping from {'topgraph', 'wgtgraph', 'empty', 'naive'}
 #size of circuits
