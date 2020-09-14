@@ -2,6 +2,7 @@
 #@2020-04-15: output way added
 #@2020-04-19: Types of Filters are introduced to facilitate selection of different filters 
 #@2020-04-19: Intorduced SIZE (bool)
+#@2020-09-14: Introduced SPL and a new filter R_hat
 
 #\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
 #import numpy as np
@@ -9,7 +10,6 @@ import networkx as nx
 from ag import q20 # architecture graph
 from inimap import _tau_bsg_, _tau_bstg_ # two initial mappings
 from QTokyo_f import * 
-''' QTokyo_f_1221 differs from QTokyo_f in that the Fallback mechanism is stregthened at the cost of slow process'''
 import json
 import os
 import time
@@ -18,11 +18,18 @@ import time
 def save_result(name, content):
     name = str(name)
     content = str(content)
-    file = open("testRecord/qct-" + "2020-04-22-" + name + ".txt", mode = 'a')
+    file = open("testRecord/qct-" + "2020-09-14-" + name + ".txt", mode = 'a')
     file.write(content)
     file.write('\n')
     file.close()
 #\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
+#select QFilter_type, SIZE, and initial_mapping
+#Filter type
+QFilter_type = '0' # select type from {'0', '1', '12', '12x', '2x'}
+#initial mapping
+initial_mapping = 'topgraph' #select mapping from {'topgraph', 'wgtgraph', 'empty', 'naive'}
+#size of circuits
+SIZE = 'medium' #select size from {'small', 'medium', 'large', 'all'}
 
 def qubit_in_circuit(D): # the set of logic qubits appeared in D, a subset of C
     ''' Return the set of qubits in a circuit D
@@ -42,6 +49,21 @@ G = q20()
 #G = nx.Graph.to_undirected(H)
 EG = nx.edges(G)
 
+'''Generate the shortest_path_length dict for Q20 '''
+def SPLQ20():
+    G = q20()
+    spl_dic = dict() 
+    V = list(range(20))
+    for p in V:
+        for q in V:
+            if (q,p) in spl_dic:
+                d = spl_dic[(q,p)]
+            else:
+                d = nx.shortest_path_length(G,p,q)
+            spl_dic[(p,q)] = d
+    return spl_dic
+
+SPL = SPLQ20()
 #\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
 # The benchmark circuits
 
@@ -55,18 +77,13 @@ A12 = '12 :: if Q0 is used for the first layer and Q1 is used for the other laye
 A12x = '12x :: if Q0 is used for the first layer and Q0+Q1 is used for the other layers,\n'
 A2x = '2x :: if Q0+Q1 is used for all layers '
 
-#select QFilter_type, SIZE, and initial_mapping
-#Filter type
-QFilter_type = '0' # select type from {'0', '1', '12', '12x', '2x'}
+
 name = 'Q' + QFilter_type
 content = '*****************************************'
 save_result(name, content)
 content = 'QFilter types (string):\n' + A0 + A1 + A12 + A12x + A2x 
 save_result(name, content)
-#initial mapping
-initial_mapping = 'topgraph' #select mapping from {'topgraph', 'wgtgraph', 'empty', 'naive'}
-#size of circuits
-SIZE = 'small' #select size from {'small', 'medium', 'large', 'all'}
+
 content = 'In this test, we use Type %s filter and %s initial mapping for %s circuits' %(QFilter_type, initial_mapping, SIZE)
 print(content)
 save_result(name, content)
@@ -124,11 +141,11 @@ for file_name in files:
 
     sum_in += l
     
-    C_out, cost_time = qct(C,G,EG,tau,QFilter_type)
+    C_out, cost_time = qct(C,G,EG,tau,QFilter_type,SPL)
     COST_TIME += cost_time
     sum_out += len(C_out)
     
-    content = count, file_name, nl, l, len(C_out), len(C_out)-l, round(cost_time,2)
+    content = count, file_name, nl, l, len(C_out), len(C_out)-l, round(cost_time,2), round(len(C_out)/l, 4)
     print(content)
     save_result(name, content)
 
