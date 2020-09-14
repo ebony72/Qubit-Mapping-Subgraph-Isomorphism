@@ -5,7 +5,7 @@ This repository is the Python implementation for algorithms introduced in "Qubit
 
 We provide the following selections:
 
-A. QFilter_type (line 60)
+A. QFilter_type (line 28)
 	One can select type from {'0', '1', '12', '12x', '2x'}
 	
 		 '0 :: if no filter is used'
@@ -21,11 +21,11 @@ A. QFilter_type (line 60)
 	where Q0 and Q1 are the set of qubits in the front layer and the first look-ahead layer of the current logical circuit.
 	The default filter type is '12'. 
 
-B. Initial mapping (line 67)
+B. Initial mapping (line 30)
 	One can select mapping from {'topgraph', 'wgtgraph', 'empty', 'naive'}
 	The default mapping is 'topgraph'
 
-C. Size of the circuits (line 69)
+C. Size of the circuits (line 32)
 	One can select size from {'small', 'medium', 'large', 'all'}
 	The default size is 'medium'
 
