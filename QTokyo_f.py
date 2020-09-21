@@ -356,9 +356,14 @@ def gate_phy_distance(gate, tau, SPL): #! V is an integer continuum
         '''In this case, the gate should have been always a topgate by far!'''
         d = min([SPL[(u,v)] for u in UnOcc for v in UnOcc if v != u])
         return d  
-     
+##@0921
+def min_gate_dist(tau, LD, C, nl, SPL):
+    '''Return the minium gate distance for gates in the front layer'''
+    LTG = topgates(C, nl, LD)
+    m = min([gate_phy_distance(C[i], tau, SPL) for i in LTG])
+    return m
 ##@0913
-def R_hat(tau, LD, nl, C, SPL): #Eq.4 in the paper
+def R_hat(tau, LD, C, nl, SPL): #Eq.4 in the paper
     '''Return the weigthed sum of gate_phy_distances for the top-s layer gates'''
     '''The smaller the better'''
     LDx = LD[:]
@@ -408,6 +413,7 @@ def SWAP3x(C,EG,nl,tau,LD, QFilter_type, SPL):
         pass
         
     SWAP3 = []
+    rhat = R_hat(tau, LD, C, nl, SPL) 
     for edge_1 in EG:
         p = edge_1[0]
         q = edge_1[1]
@@ -415,6 +421,9 @@ def SWAP3x(C,EG,nl,tau,LD, QFilter_type, SPL):
             continue
 
         tau1 = swap(EG,tau,p,q)
+        rhat1 = R_hat(tau1, LD, C, nl, SPL)
+        if rhat1 > rhat: continue
+                
         x1 = [ [edge_1], tau1]
         if x1 not in SWAP3:
             SWAP3.append(x1)
@@ -428,7 +437,10 @@ def SWAP3x(C,EG,nl,tau,LD, QFilter_type, SPL):
             if tau1[p] not in QF2 and tau1[q] not in QF2:
                 continue
             
-            tau2 = swap(EG,tau1,p,q)           
+            tau2 = swap(EG,tau1,p,q)  
+            rhat2 = R_hat(tau2, LD, C, nl, SPL)
+            if rhat2 > rhat1: continue
+                        
             x2 = [ [edge_1,edge_2], tau2]
             if x2 not in SWAP3:
                 SWAP3.append(x2)
@@ -443,69 +455,15 @@ def SWAP3x(C,EG,nl,tau,LD, QFilter_type, SPL):
                     continue
 
                 tau3 = swap(EG,tau2,p,q)
+                mdg3 = min_gate_dist(tau3, LD, C, nl, SPL)
+                '''We aim to solve at least one gate.'''
+                if mdg3 > 1: continue 
                 x3 = [ [edge_1, edge_2, edge_3], tau3]
                 if x3 not in SWAP3:
                     SWAP3.append(x3)                    
     return SWAP3
-
 ###\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
-# SWAP4 returns swaps that lead to mappings 4-close (dist=4) to tau
-    # By far, no tested circuits go to this level
-    # Consider delete this function
-    
-def SWAP4x(C,EG,nl,tau,LD, QFilter_type, SPL):
-
-    ''' Return all (Q-filtered) actions (swap sequences) with length ≤4 by considering one more swap than SWAP3x
-        Args:
-            C (list): the input circuit
-            EG (list): the list of edges of the architecture graph G
-            nl (int): the number of qubits in C
-            tau (list): a mapping from V to Q, where V (Q) is the list of physical (logical) qubits
-            LD (list): the index list of D, which represents the current logical circuit
-            QFilter_type (str): '0' (no filter), '1' (Q0-filter as in the paper), '12' (Q0+Q1-filter),\
-                                    '12x' (Q0+weak_Q1-filter), '2x' (weak_Q1-filter)
-            
-        Returns:
-            SWAP4 (list): each item has form [action, mapping], where action is a list consists of at most 4 swaps,
-                        mapping is obtained by applying the action to tau
-    '''
-    
-    QFilter = Q_Filter(C,EG,nl,tau,LD)
-    if QFilter_type == '0':
-        QF4 = QFilter[0]
-    elif QFilter_type == '1':
-        QF4 = QFilter[1]
-    elif QFilter_type == '12':
-        QF4 = QFilter[2]
-    elif QFilter_type == '12x':
-        QF4 = QFilter[3]
-    elif QFilter_type == '2x':
-        QF4 = QFilter[3]
-    else:
-        pass
-    
-    SWAP4 = []
-    z3 = SWAP3x(C,EG,nl,tau,LD,QFilter_type, SPL)
-    
-    for x in z3:
-        tau3 = x[1]
-        s = x[0]      # Achtung! 1 <= len(s) <= 3 
-        for edge_4 in EG:
-
-            p = edge_4[0]
-            q = edge_4[1]
-
-            if tau3[p] not in QF4 and tau3[q] not in QF4:
-                continue
-                
-            tau4 = swap(EG,tau3,p,q)
-            s.append(edge_4)
-            x4 = [s,tau4]
-            if (x4 not in SWAP4):
-                SWAP4.append(x4)
-
-    return SWAP4
-
+#@0921--removed SWAP4x
 ###\__/#\#/\#\__/#\#/\__/--\__/#\__/#\#/~\
 # This subroutine iteratively identifies those topgates in D (could be a solvable subgraph) that tau can solve/execute
 
@@ -608,22 +566,11 @@ def good_next_mappingx(C,G,EG,nl,tau,LD,QFilter_type, SPL):
             continue
         t = len(x)/(3*u) # the efficiency rate of rho is defined as (number of solved gates)/(3*(number of swaps used))
         SG.append([rho,t])
-
-    if not SG:
-        print('Yes, we go to the fourth level')
-        for rho in SWAP4x(C,EG,nl,tau,LD,QFilter_type, SPL):
-            u = len(rho[0]) # u < 3 is possible
-            x = greedy_solved_gates(C,G,EG,nl,rho[1],LD)
-            if not x:
-                continue
-            t = len(x)/(3*u) # the efficiency rate of rho is defined as (number of solved gates)/(3*(number of swaps used))
-            SG.append([rho,t])
             
     taunew = tau[:]
-    
     if not SG: # if no proper mapping in SWAP1-4, take a random neighbor of tau
         UU = swap_reduce_min_dist(G,tau,TG) # UU has form [taunew, path]
-        print('  Oops, there are no good swaps, we select one swap that reduces the minimal distance')
+        print('  Oops, there are no good swaps, we reduce the minimal distance')
         return UU[1], UU[0]
     
     # else, we select the mapping with the best efficiency rate from SG
